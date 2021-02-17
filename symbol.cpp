@@ -16,13 +16,23 @@ int lookup (string s)
   return -1;
 }
 
-int insert_id (string s) 
+int insert_id (string s, dataType dtype) 
 {
+  // cout<<"Add to symtable: "<<s<<endl;
+  // cout<<"Current offset: "<<last_offset<<endl;
+  // cout<<"Data type:"<<dtype<<endl;
   struct entry e;
   e.name = s;
   e.type = VARIABLE;
+  e.dtype = dtype;
   e.offset = last_offset;
-  last_offset+=4;
+  if (dtype == INT)
+  {
+    last_offset+=4;
+  } else if (dtype == FLOAT)
+  {
+    last_offset+=8;
+  }
   symtable.push_back(e);
   return symtable.size() - 1;
 }
@@ -32,7 +42,7 @@ int insert_num (string s)
   struct entry e;
   e.name = s;
   e.type = NUMBER;
-  e.value = stoi(s);
+  e.value.int_val = stoi(s);
   symtable.push_back(e);
   return symtable.size() - 1;
 }
@@ -42,7 +52,11 @@ void print_entry(int index)
   if (symtable[index].type == VARIABLE) {
     cout << symtable[index].offset;
   } else if (symtable[index].type == NUMBER) {
-    cout << "#" << symtable[index].value;
+    if (symtable[index].dtype == INT) {
+      cout << "#" << symtable[index].value.int_val;
+    } else {
+      cout << "#" << symtable[index].value.float_val;
+    }
   }
 }
 

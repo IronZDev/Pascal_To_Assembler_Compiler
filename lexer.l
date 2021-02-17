@@ -29,9 +29,9 @@ program		{return PROGRAM;}
 function	{return FUNCTION;}
 procedure	{return PROCEDURE;}
 array       {return ARRAY;}
-integer     {cout<<"int"<<yytext<<endl; return INTEGER;}
-real        {cout<<"real"<<yytext<<endl; return REAL;}
-var         {cout<<"var"<<yytext<<endl; return VAR;}
+integer     {yylval = INT; return INTEGER;}
+real        {yylval = FLOAT; return REAL;}
+var         {return VAR;}
 begin       {return BEGIN_TOK;}
 end         {return END;}
 {assignop}  {return ASSIGNOP;}
@@ -41,16 +41,22 @@ else        {return ELSE;}
 while       {return WHILE;}
 do          {return DO;}
 {relop}     {return RELOP;}
-{sign}      {return SIGN;}
+{sign}      {yylval = (int)yytext[0]; return SIGN;}
 or          {return OR;}
-{mulop}     {return MULOP;}
+{mulop}     {yylval = (int)yytext[0]; return MULOP;}
 not         {return NOT;}
 of          {return OF;}
 {array_delim} {return ARRAY_DELIM;}
 {id}        {
                 int index = lookup(yytext);
                 if(index == -1)
-                    index = insert_id(yytext);
+                {   
+                    if (isVarDeclaration) {
+                        pendingEntries.push_back(yytext);
+                    } else {
+                        index = insert_id(yytext, NONE);
+                    }
+                }
                 yylval = index;
                 return ID;
             }

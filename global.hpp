@@ -15,17 +15,25 @@ using namespace std;
 //#define DONE 260
 extern int tokenval;
 extern int lineno;
-enum dataType{FLOAT, INT};
+enum dataType{FLOAT, INT, NONE};
 enum entryType{VARIABLE, NUMBER, UNDEF};
+union val {
+  int int_val;
+  float float_val;
+};
 struct entry {
   string name;
   unsigned offset;
   entryType type;
   dataType dtype;
-  int value;
+  val value;
 };
+extern bool isVarDeclaration;
+extern vector<string> pendingEntries;
 extern vector<entry> symtable;
-int insert (string s, int tok);
+int insert_id (string s, dataType dtype);
+int insert_num (string s);
+void print_entry(int index);
 void yyerror (string m) ;
 int lookup (string s) ;
 void init () ;
