@@ -1,0 +1,75 @@
+%option noyywrap
+%{
+    #include "global.hpp"
+    #include "parser.hpp"
+    char lexbuf[BSIZE];
+    int lineno = 1;
+%}
+
+/* regular definitions */
+delim				[ \t]+
+newline				[\n]
+digit				[0-9]
+letter				[A-Za-z]
+id					{letter}({letter}|{digit})*
+digits				{digit}+
+optional_fraction	.{digits}
+optional_exponent	E(\+|-){digits}
+num                 {digits}{optional_fraction}?{optional_exponent}?
+relop				=|<>|<|<=|>=|>
+sign				\+|-
+mulop				\*|\/|div|mod|and
+assignop			:=
+array_delim         \.\.
+
+%%
+{delim}		{}
+{newline}	{lineno++;}
+program		{return PROGRAM;}
+function	{return FUNCTION;}
+procedure	{return PROCEDURE;}
+array       {return ARRAY;}
+integer     {cout<<"int"<<yytext<<endl; return INTEGER;}
+real        {cout<<"real"<<yytext<<endl; return REAL;}
+var         {cout<<"var"<<yytext<<endl; return VAR;}
+begin       {return BEGIN_TOK;}
+end         {return END;}
+{assignop}  {return ASSIGNOP;}
+if          {return IF;}
+then        {return THEN;}
+else        {return ELSE;}
+while       {return WHILE;}
+do          {return DO;}
+{relop}     {return RELOP;}
+{sign}      {return SIGN;}
+or          {return OR;}
+{mulop}     {return MULOP;}
+not         {return NOT;}
+of          {return OF;}
+{array_delim} {return ARRAY_DELIM;}
+{id}        {
+                int index = lookup(yytext);
+                if(index == -1)
+                    index = insert_id(yytext);
+                yylval = index;
+                return ID;
+            }
+{num}       {
+                yylval = insert_num(yytext);
+                return NUM;
+            }
+.           {return *yytext;}
+
+%%
+
+int lexan() {return yylex();}
+/*
+%%
+{delim}		{}
+{newline}	{lineno++;}
+{number}	{yylval = atoi(yytext); return(NUM);}
+{word}		{int p = lookup(yytext); if(p == 0) p = insert(yytext, ID); yylval = p; return(symtable[p].token);}
+{symbol}	{yylval = NONE; return(yytext[0]);}
+
+%%
+*/

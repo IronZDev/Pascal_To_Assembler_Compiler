@@ -1,0 +1,12 @@
+/comp
+/comp_simple.txt
+/emitter.o
+/error.o
+/init.o
+/lexer.cpp
+/lexer.o
+/main.o
+/parser.cpp
+/parser.hpp
+/parser.o
+/symbol.o
