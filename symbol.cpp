@@ -42,7 +42,13 @@ int insert_num (string s)
   struct entry e;
   e.name = s;
   e.type = NUMBER;
-  e.value.int_val = stoi(s);
+  if (s.find('.') != string::npos) {
+    e.dtype = FLOAT;
+    e.value.float_val = stof(s);
+  } else {
+    e.dtype = INT;
+    e.value.int_val = stoi(s);
+  }
   symtable.push_back(e);
   return symtable.size() - 1;
 }
