@@ -4,11 +4,22 @@ int yylex();
 bool isVarDeclaration = false;
 vector<string> pendingEntries;
 int temp_counter = 0;
+int genTemp(dataType dtype) {
+	int temp;
+	if (dtype == INT) {
+		temp = insert_id("temp"+to_string(temp_counter), INT);
+	} else {
+		temp = insert_id("temp"+to_string(temp_counter), FLOAT);
+	}
+	temp_counter++;
+	return temp;
+}
+
 int genOp(string op,int var1, int var2) {
 	int ret;
 	if(symtable[var1].dtype == INT)
 	{
-		ret = insert_id("temp"+to_string(temp_counter), INT);
+		ret = genTemp(INT);
 		temp_counter++;
 		if(symtable[var2].dtype == INT)
 		{
@@ -16,15 +27,15 @@ int genOp(string op,int var1, int var2) {
 		}
 		else 
 		{
-			int temp = insert_id("temp"+to_string(temp_counter), INT);
+			int temp = genTemp(INT);
 			temp_counter++;
-			cout << "realtoint "; print_entry(var2); cout << ","; print_entry(temp); cout << endl;
+			cout << "realtoint.r "; print_entry(var2); cout << ","; print_entry(temp); cout << endl;
 			cout << op <<".i "; print_entry(var1); cout << ","; print_entry(temp); cout << ","; print_entry(ret); cout << endl;
 		}
 	}
 	if(symtable[var1].dtype == FLOAT)
 	{
-		ret = insert_id("temp"+to_string(temp_counter), FLOAT);
+		ret = genTemp(FLOAT);
 		temp_counter++;
 		if(symtable[var2].dtype == FLOAT)
 		{
@@ -32,9 +43,9 @@ int genOp(string op,int var1, int var2) {
 		}
 		else
 		{
-			int temp = insert_id("temp"+to_string(temp_counter), FLOAT);
+			int temp = genTemp(FLOAT);
 			temp_counter++;
-			cout << "inttoreal "; print_entry(var2); cout << ","; print_entry(temp); cout << endl;
+			cout << "inttoreal.i "; print_entry(var2); cout << ","; print_entry(temp); cout << endl;
 			cout << op <<".r "; print_entry(var1); cout << ","; print_entry(temp); cout << ","; print_entry(ret); cout << endl;
 		}
 	}
@@ -184,10 +195,35 @@ simple_expression: term {$$ = $1;}
 
 term: factor { $$ = $1; }
 	| term MULOP factor {
-		if ($2 == '*') {
-			$$=genOp("mul",$1, $3);
-		} else {
-			$$=genOp("div",$1, $3);
+		int res;
+		switch ($2) {
+			case '*':
+				$$ = genOp("mul", $1, $3);
+				break;
+			case '/':
+				$$ = genOp("div", $1, $3);
+				break;
+			case 'd':
+				res = genOp("div", $1, $3);
+				if (symtable[res].dtype == FLOAT) {
+					int temp = genTemp(INT);
+					cout << "realtoint.r "; print_entry(res); cout << ","; print_entry(temp); cout<<endl;
+					$$ = temp;
+				} else {
+					$$ = res;
+				}
+				break;
+			case 'm':
+				res = genOp("div", $1, $3);
+				if (symtable[res].dtype == FLOAT) {
+					int int_div = genTemp(INT);
+					cout << "realtoint.r "; print_entry(res); cout << ","; print_entry(int_div); cout<<endl;
+					res = int_div;
+				}
+				$$ = genOp("sub", $1, res);
+				break;
+			case 'a':
+				break;
 		}
 	}
 	;
