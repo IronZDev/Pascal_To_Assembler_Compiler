@@ -3,7 +3,14 @@
 int yylex();
 bool isVarDeclaration = false;
 vector<string> pendingEntries;
-int temp_counter = 0;
+unsigned long temp_counter = 0;
+unsigned long label_counter = 0;
+
+long getLabel() {
+	label_counter++;
+	return label_counter;
+};
+
 int genTemp(dataType dtype) {
 	int temp;
 	if (dtype == INT) {
@@ -17,36 +24,36 @@ int genTemp(dataType dtype) {
 
 int genOp(string op,int var1, int var2) {
 	int ret;
-	if(symtable[var1].dtype == INT)
+	if (symtable[var1].dtype == INT)
 	{
 		ret = genTemp(INT);
 		temp_counter++;
 		if(symtable[var2].dtype == INT)
 		{
-			cout << op <<".i "; print_entry(var1); cout << ","; print_entry(var2); cout << ","; print_entry(ret); cout << endl;
+			cout << "\t" << op <<".i "; print_entry(var1); cout << ","; print_entry(var2); cout << ","; print_entry(ret); cout << endl;
 		}
 		else 
 		{
 			int temp = genTemp(INT);
 			temp_counter++;
-			cout << "realtoint.r "; print_entry(var2); cout << ","; print_entry(temp); cout << endl;
-			cout << op <<".i "; print_entry(var1); cout << ","; print_entry(temp); cout << ","; print_entry(ret); cout << endl;
+			cout << "\trealtoint.r "; print_entry(var2); cout << ","; print_entry(temp); cout << endl;
+			cout << "\t" << op <<".i "; print_entry(var1); cout << ","; print_entry(temp); cout << ","; print_entry(ret); cout << endl;
 		}
 	}
-	if(symtable[var1].dtype == FLOAT)
+	if (symtable[var1].dtype == FLOAT)
 	{
 		ret = genTemp(FLOAT);
 		temp_counter++;
 		if(symtable[var2].dtype == FLOAT)
 		{
-			cout << op <<".r "; print_entry(var1); cout << ","; print_entry(var2); cout << ","; print_entry(ret); cout << endl;
+			cout << "\t" << op <<".r "; print_entry(var1); cout << ","; print_entry(var2); cout << ","; print_entry(ret); cout << endl;
 		}
 		else
 		{
 			int temp = genTemp(FLOAT);
 			temp_counter++;
-			cout << "inttoreal.i "; print_entry(var2); cout << ","; print_entry(temp); cout << endl;
-			cout << op <<".r "; print_entry(var1); cout << ","; print_entry(temp); cout << ","; print_entry(ret); cout << endl;
+			cout << "\tinttoreal.i "; print_entry(var2); cout << ","; print_entry(temp); cout << endl;
+			cout << "\t" << op <<".r "; print_entry(var1); cout << ","; print_entry(temp); cout << ","; print_entry(ret); cout << endl;
 		}
 	}
 	return ret;
@@ -127,7 +134,7 @@ parameter_list: identifier_list ':' type
 	| parameter_list ';' identifier_list ':' type
 	;
 
-compound_statement: BEGIN_TOK optional_statements END {cout<<"exit"<<endl;}
+compound_statement: BEGIN_TOK optional_statements END {cout<<"\texit"<<endl;}
 	;
 
 optional_statements: statement_list
@@ -141,22 +148,40 @@ statement_list: statement
 statement: variable ASSIGNOP expression {
 		if (symtable[$1].dtype == FLOAT) {
 			if (symtable[$3].dtype != FLOAT) {
-				cout << "inttoreal.i "; print_entry($3); cout << ","; print_entry($1); cout << endl;
+				cout << "\tinttoreal.i "; print_entry($3); cout << ","; print_entry($1); cout << endl;
 			} else {
-				cout << "mov.r "; print_entry($3); cout << ","; print_entry($1); cout << endl;
+				cout << "\tmov.r "; print_entry($3); cout << ","; print_entry($1); cout << endl;
 			}
 		} else {
 			if (symtable[$3].dtype != INT) {
-				cout << "realtoint.r "; print_entry($3); cout << ","; print_entry($1); cout << endl;
+				cout << "\trealtoint.r "; print_entry($3); cout << ","; print_entry($1); cout << endl;
 			} else {
-				cout << "mov.i "; print_entry($3); cout << ","; print_entry($1); cout << endl;
+				cout << "\tmov.i "; print_entry($3); cout << ","; print_entry($1); cout << endl;
 			}
 		}
 	}
 	| procedure_statement
 	| compound_statement
-	| IF expression THEN statement ELSE statement
-	| WHILE expression DO statement
+	| IF expression THEN statement ELSE statement {
+	}
+	| WHILE {
+		long again_id = getLabel();
+		long exit_id = getLabel();
+		$1 = again_id;
+		$$ = exit_id;
+		cout << "lab" << again_id << ":" << endl;
+	}
+	expression {
+		if (symtable[$3].dtype == FLOAT) {
+			cout << "\tjeq.r "; print_entry($3); cout << ", #0, #lab" << $2 << endl;
+		}
+		else {
+			cout << "\tjeq.i "; print_entry($3); cout << ", #0, #lab" << $2 << endl;
+		}
+	} DO statement {
+		cout << "\tjump #lab" << $1 << endl;
+		cout << "lab" << $2 <<": " << endl;
+	}
 	;
 
 variable: ID {$$=$1;}	
@@ -207,7 +232,7 @@ term: factor { $$ = $1; }
 				res = genOp("div", $1, $3);
 				if (symtable[res].dtype == FLOAT) {
 					int temp = genTemp(INT);
-					cout << "realtoint.r "; print_entry(res); cout << ","; print_entry(temp); cout<<endl;
+					cout << "\trealtoint.r "; print_entry(res); cout << ","; print_entry(temp); cout<<endl;
 					$$ = temp;
 				} else {
 					$$ = res;
@@ -217,7 +242,7 @@ term: factor { $$ = $1; }
 				res = genOp("div", $1, $3);
 				if (symtable[res].dtype == FLOAT) {
 					int int_div = genTemp(INT);
-					cout << "realtoint.r "; print_entry(res); cout << ","; print_entry(int_div); cout<<endl;
+					cout << "\trealtoint.r "; print_entry(res); cout << ","; print_entry(int_div); cout<<endl;
 					res = int_div;
 				}
 				$$ = genOp("sub", $1, res);
