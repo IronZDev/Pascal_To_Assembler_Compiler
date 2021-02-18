@@ -17,6 +17,7 @@ extern int tokenval;
 extern int lineno;
 enum dataType{FLOAT, INT, NONE};
 enum entryType{VARIABLE, NUMBER, UNDEF};
+enum relOps{EQUAL, NOT_EQUAL, SMALLER, SMALLER_EQUAL, GREATER_EQUAL, GREATER};
 union val {
   int int_val;
   float float_val;

@@ -40,7 +40,23 @@ then        {return THEN;}
 else        {return ELSE;}
 while       {return WHILE;}
 do          {return DO;}
-{relop}     {return RELOP;}
+{relop}     {
+                string op = (string)yytext;
+                if (op == "=") {
+                    yylval = EQUAL;
+                } else if (op == "<>") {
+                    yylval = NOT_EQUAL;
+                } else if (op == "<") {
+                    yylval = SMALLER;
+                } else if (op == "<=") {
+                    yylval = SMALLER_EQUAL;
+                } else if (op == ">=") {
+                    yylval = GREATER_EQUAL;
+                } else {
+                    yylval = GREATER;
+                }
+                return RELOP;
+            }
 {sign}      {yylval = (int)yytext[0]; return SIGN;}
 or          {return OR;}
 {mulop}     {yylval = (int)yytext[0]; return MULOP;}

@@ -58,6 +58,60 @@ int genOp(string op,int var1, int var2) {
 	}
 	return ret;
 }
+
+int genRelOp(relOps relOp, int var1, int var2) {
+	int ret_label = getLabel();
+	string relOpName;
+	switch (relOp) {
+		case EQUAL:
+			relOpName = "jne";
+			break;
+		case NOT_EQUAL:
+			relOpName = "je";
+			break;
+		case SMALLER:
+			relOpName = "jge";
+			break;
+		case SMALLER_EQUAL:
+			relOpName = "jg";
+			break;
+		case GREATER_EQUAL:
+			relOpName = "jl";
+			break;
+		case GREATER:
+			relOpName = "jle";
+			break;
+	}
+	if (symtable[var1].dtype == INT)
+	{
+		temp_counter++;
+		if(symtable[var2].dtype == INT)
+		{
+			cout << "\t" << relOpName <<".i "; print_entry(var1); cout << ","; print_entry(var2); cout << ", #lab"+to_string(ret_label) << endl;
+		} else {
+			int temp = genTemp(FLOAT);
+			temp_counter++;
+			cout << "\tinttoreal.i "; print_entry(var1); cout << ","; print_entry(temp); cout << endl;
+			cout << "\t" << relOpName <<".r "; print_entry(temp); cout << ","; print_entry(var2); cout << ","; print_entry(var2); cout << ", #lab"+to_string(ret_label) << endl;
+		}
+	}
+	if (symtable[var1].dtype == FLOAT)
+	{
+		temp_counter++;
+		if(symtable[var2].dtype == FLOAT)
+		{
+			cout << "\t" << relOpName <<".r "; print_entry(var1); cout << ","; print_entry(var2); cout << ","; print_entry(var2); cout << ", #lab"+to_string(ret_label) << endl;
+		}
+		else
+		{
+			int temp = genTemp(FLOAT);
+			temp_counter++;
+			cout << "\tinttoreal.i "; print_entry(var2); cout << ","; print_entry(temp); cout << endl;
+			cout << "\t" << relOpName <<".r "; print_entry(var1); cout << ","; print_entry(temp); cout << ","; print_entry(var2); cout << ", #lab"+to_string(ret_label) << endl;
+		}
+	}
+	return ret_label;
+}
 %}
 
 %token PROGRAM
@@ -162,25 +216,27 @@ statement: variable ASSIGNOP expression {
 	}
 	| procedure_statement
 	| compound_statement
-	| IF expression THEN statement ELSE statement {
+	| IF {
+		long end_if = getLabel();
+		$$ = end_if;
+	}
+	expression 
+	THEN 
+	statement {
+		cout << "\tjump.i #lab"+to_string($2) << endl;
+	}  ELSE {
+		cout << "lab"+to_string($3)+":" << endl;
+	} statement {
+		cout << "lab"+to_string($2)+":" << endl;
 	}
 	| WHILE {
 		long again_id = getLabel();
-		long exit_id = getLabel();
-		$1 = again_id;
-		$$ = exit_id;
+		$$ = again_id;
 		cout << "lab" << again_id << ":" << endl;
 	}
-	expression {
-		if (symtable[$3].dtype == FLOAT) {
-			cout << "\tjeq.r "; print_entry($3); cout << ", #0, #lab" << $2 << endl;
-		}
-		else {
-			cout << "\tjeq.i "; print_entry($3); cout << ", #0, #lab" << $2 << endl;
-		}
-	} DO statement {
-		cout << "\tjump #lab" << $1 << endl;
-		cout << "lab" << $2 <<": " << endl;
+	expression DO statement {
+		cout << "\tjump #lab" << $2 << endl;
+		cout << "lab" << $3 <<": " << endl;
 	}
 	;
 
@@ -197,7 +253,9 @@ expression_list: expression
 	;
 
 expression: simple_expression {$$=$1;}
-	| simple_expression RELOP simple_expression
+	| simple_expression RELOP simple_expression {
+		$$ = genRelOp(relOps($2), $1, $3);
+	}
 	;
 
 simple_expression: term {$$ = $1;}
@@ -255,8 +313,8 @@ term: factor { $$ = $1; }
 
 factor: variable { $$=$1; }
 	| ID '(' expression_list ')' 
-	| NUM 
-	| '(' expression ')' 
+	| NUM { $$ = $1; }
+	| '(' expression ')' { $$ = $2; }
 	| NOT factor
 	;
 %%
