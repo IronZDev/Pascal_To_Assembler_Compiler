@@ -333,7 +333,11 @@ factor: variable { $$=$1; }
 	| ID '(' expression_list ')' 
 	| NUM { $$ = $1; }
 	| '(' expression ')' { $$ = $2; }
-	| NOT factor
+	| NOT factor {
+		long negated_temp = genTemp(INT);
+		cout << "\tnot.i "; print_entry($2); cout << ","; print_entry(negated_temp); cout << endl;
+		$$ = negated_temp;
+	}
 	;
 %%
 
