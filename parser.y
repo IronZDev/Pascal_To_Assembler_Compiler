@@ -11,8 +11,8 @@ long getLabel() {
 	return label_counter;
 };
 
-int genTemp(dataType dtype) {
-	int temp;
+long genTemp(dataType dtype) {
+	long temp;
 	if (dtype == INT) {
 		temp = insert_id("temp"+to_string(temp_counter), INT);
 	} else {
@@ -60,7 +60,8 @@ int genOp(string op,int var1, int var2) {
 }
 
 int genRelOp(relOps relOp, int var1, int var2) {
-	int ret_label = getLabel();
+	long ret_label = getLabel();
+	long ret_bool = genTemp(INT);
 	string relOpName;
 	switch (relOp) {
 		case EQUAL:
@@ -110,7 +111,13 @@ int genRelOp(relOps relOp, int var1, int var2) {
 			cout << "\t" << relOpName <<".r "; print_entry(var1); cout << ","; print_entry(temp); cout << ","; print_entry(var2); cout << ", #lab"+to_string(ret_label) << endl;
 		}
 	}
-	return ret_label;
+	long end_if_label = getLabel();
+	cout << "\tmov.i #1,"; print_entry(ret_bool); cout << endl;
+	cout << "\tjump.i #lab"+to_string(end_if_label) << endl;
+	cout << "lab" + to_string(ret_label) + ":" << endl;
+	cout << "\tmov.i #0,"; print_entry(ret_bool); cout << endl;
+	cout << "lab" + to_string(end_if_label) +  ":" << endl;
+	return ret_bool;
 }
 %}
 
@@ -220,12 +227,16 @@ statement: variable ASSIGNOP expression {
 		long end_if = getLabel();
 		$$ = end_if;
 	}
-	expression 
+	expression {
+		long if_false = getLabel();
+		$$ = if_false;
+		cout << "\tje.i #0,"; print_entry($3); cout << ", #lab"+to_string(if_false) << endl;
+	}
 	THEN 
 	statement {
-		cout << "\tjump.i #lab"+to_string($2) << endl;
+		cout << "\tjump.i #lab" + to_string($2) << endl;
 	}  ELSE {
-		cout << "lab"+to_string($3)+":" << endl;
+		cout << "lab"+to_string($4)+":" << endl;
 	} statement {
 		cout << "lab"+to_string($2)+":" << endl;
 	}
@@ -268,12 +279,14 @@ simple_expression: term {$$ = $1;}
 	}
 	| simple_expression SIGN term {
 		if ($2 == '+') {
-			$$=genOp("add",$1, $3);
+			$$=genOp("add", $1, $3);
 		} else {
-			$$=genOp("sub",$1, $3);
+			$$=genOp("sub", $1, $3);
 		}
 	}
-	| simple_expression OR term
+	| simple_expression OR term {
+		$$=genOp("or", $1, $3);
+	}
 	;
 
 term: factor { $$ = $1; }
@@ -306,6 +319,7 @@ term: factor { $$ = $1; }
 				$$ = genOp("sub", $1, res);
 				break;
 			case 'a':
+				$$ = genOp("and", $1, $3);
 				break;
 		}
 	}
