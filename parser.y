@@ -245,9 +245,13 @@ statement: variable ASSIGNOP expression {
 		$$ = again_id;
 		cout << "lab" << again_id << ":" << endl;
 	}
-	expression DO statement {
-		cout << "\tjump #lab" << $2 << endl;
-		cout << "lab" << $3 <<": " << endl;
+	expression {
+		long exit_loop = getLabel();
+		$$ = exit_loop;
+		cout << "\tjeq.i #0,"; print_entry($3); cout << ",#lab"+to_string(exit_loop) << endl;
+	} DO statement {
+		cout << "\tjump.i #lab" + to_string($2) << endl;
+		cout << "lab"+to_string($4)+":" << endl;
 	}
 	;
 
