@@ -188,7 +188,14 @@ subprogram_declarations: subprogram_declarations subprogram_declaration ';'
 	|
 	;
 	
-subprogram_declaration: subprogram_head declarations compound_statement {scopeStack.pop();}
+subprogram_declaration: subprogram_head declarations compound_statement {
+		string scope_content = redirectStream.str();
+		cout.rdbuf(oldbuf);
+		redirectStream.str(string()); // Clear buffer
+		cout << "\tenter.i #"+to_string(abs(symtable[scopeStack.top()].value.params.offset_down)) << endl;
+		cout << scope_content;
+		scopeStack.pop();
+	}
 	;
 	
 subprogram_head: FUNCTION ID {
@@ -198,7 +205,7 @@ subprogram_head: FUNCTION ID {
 		symtable[$2].value.params.offset_up = 12;
 		symtable[$2].value.params.offset_down = 0;
 		isParamsDeclaration = true;
-		
+		oldbuf = cout.rdbuf(redirectStream.rdbuf());
 	} arguments ':' standard_type ';' {
 		entry e;
 		e.name = symtable[$2].name;
@@ -216,6 +223,7 @@ subprogram_head: FUNCTION ID {
 		symtable[$2].value.params.offset_up = 8;
 		symtable[$2].value.params.offset_down = 0;
 		isParamsDeclaration = true;
+		oldbuf = cout.rdbuf(redirectStream.rdbuf());
 	} arguments ';' {
 		isParamsDeclaration = false;
 	}

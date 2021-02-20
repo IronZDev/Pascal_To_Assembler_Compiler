@@ -5,6 +5,7 @@
 #include <iostream>
 #include <vector>
 #include <stack>
+#include <sstream>
 
 using namespace std;
 
@@ -15,6 +16,11 @@ using namespace std;
 //#define ID  259
 //#define DONE 260
 #define GLOBAL -1
+
+static stringstream redirectStream;
+static streambuf* oldbuf;
+
+
 extern int tokenval;
 extern int lineno;
 enum dataType{FLOAT, INT, REF_INT, REF_FLOAT, NONE};
