@@ -29,8 +29,21 @@ program		{return PROGRAM;}
 function	{return FUNCTION;}
 procedure	{return PROCEDURE;}
 array       {return ARRAY;}
-integer     {yylval = INT; return INTEGER;}
-real        {yylval = FLOAT; return REAL;}
+integer     {
+        if (isParamsDeclaration) {
+            yylval = REF_INT;
+        } else {
+            yylval = INT;
+        }
+        return INTEGER;
+    }
+real        {
+        if (isParamsDeclaration) {
+            yylval = REF_FLOAT;
+        } else {
+            yylval = FLOAT;
+        } return REAL;
+    }
 var         {return VAR;}
 begin       {return BEGIN_TOK;}
 end         {return END;}
@@ -67,7 +80,7 @@ of          {return OF;}
                 int index = lookup(yytext);
                 if(index == -1)
                 {   
-                    if (isVarDeclaration) {
+                    if (isVarDeclaration || isParamsDeclaration) {
                         pendingEntries.push_back(yytext);
                     } else {
                         index = insert_id(yytext, NONE);

@@ -4,6 +4,7 @@
 #include <string.h>
 #include <iostream>
 #include <vector>
+#include <stack>
 
 using namespace std;
 
@@ -13,23 +14,35 @@ using namespace std;
 //#define MOD 258
 //#define ID  259
 //#define DONE 260
+#define GLOBAL -1
 extern int tokenval;
 extern int lineno;
-enum dataType{FLOAT, INT, NONE};
-enum entryType{VARIABLE, NUMBER, UNDEF};
+enum dataType{FLOAT, INT, REF_INT, REF_FLOAT, NONE};
+enum entryType{VARIABLE, PARAM, NUMBER, FUN, UNDEF};
 enum relOps{EQUAL, NOT_EQUAL, SMALLER, SMALLER_EQUAL, GREATER_EQUAL, GREATER};
-union val {
+struct parameters {
+  long offset_up;
+  long offset_down;
+  int output;
+  vector<int> inputs;
+};
+struct val {
   int int_val;
   float float_val;
+  parameters params;
+  long ref_offset;
 };
 struct entry {
   string name;
-  unsigned offset;
+  long offset;
   entryType type;
   dataType dtype;
   val value;
+  int scope;
 };
 extern bool isVarDeclaration;
+extern bool isParamsDeclaration;
+extern stack<long> scopeStack;
 extern vector<string> pendingEntries;
 extern vector<entry> symtable;
 int insert_id (string s, dataType dtype);

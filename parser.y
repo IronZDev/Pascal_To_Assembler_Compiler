@@ -2,9 +2,17 @@
 #include "global.hpp"
 int yylex();
 bool isVarDeclaration = false;
+bool isParamsDeclaration = false;
+stack<long> scopeStack;
 vector<string> pendingEntries;
 unsigned long temp_counter = 0;
 unsigned long label_counter = 0;
+unsigned long fun_proc_counter = 0;
+
+long getFunProcLabel() {
+	fun_proc_counter++;
+	return fun_proc_counter;
+}
 
 long getLabel() {
 	label_counter++;
@@ -24,11 +32,11 @@ long genTemp(dataType dtype) {
 
 int genOp(string op,int var1, int var2) {
 	int ret;
-	if (symtable[var1].dtype == INT)
+	if (symtable[var1].dtype == INT || symtable[var1].dtype == REF_INT)
 	{
 		ret = genTemp(INT);
 		temp_counter++;
-		if(symtable[var2].dtype == INT)
+		if(symtable[var2].dtype == INT || symtable[var2].dtype == REF_INT)
 		{
 			cout << "\t" << op <<".i "; print_entry(var1); cout << ","; print_entry(var2); cout << ","; print_entry(ret); cout << endl;
 		}
@@ -40,11 +48,11 @@ int genOp(string op,int var1, int var2) {
 			cout << "\t" << op <<".i "; print_entry(var1); cout << ","; print_entry(temp); cout << ","; print_entry(ret); cout << endl;
 		}
 	}
-	if (symtable[var1].dtype == FLOAT)
+	if (symtable[var1].dtype == FLOAT || symtable[var1].dtype == REF_FLOAT)
 	{
 		ret = genTemp(FLOAT);
 		temp_counter++;
-		if(symtable[var2].dtype == FLOAT)
+		if(symtable[var2].dtype == FLOAT || symtable[var2].dtype == REF_FLOAT)
 		{
 			cout << "\t" << op <<".r "; print_entry(var1); cout << ","; print_entry(var2); cout << ","; print_entry(ret); cout << endl;
 		}
@@ -83,10 +91,10 @@ int genRelOp(relOps relOp, int var1, int var2) {
 			relOpName = "jle";
 			break;
 	}
-	if (symtable[var1].dtype == INT)
+	if (symtable[var1].dtype == INT || symtable[var1].dtype == REF_INT)
 	{
 		temp_counter++;
-		if(symtable[var2].dtype == INT)
+		if(symtable[var2].dtype == INT || symtable[var2].dtype == REF_INT)
 		{
 			cout << "\t" << relOpName <<".i "; print_entry(var1); cout << ","; print_entry(var2); cout << ", #lab"+to_string(ret_label) << endl;
 		} else {
@@ -96,10 +104,10 @@ int genRelOp(relOps relOp, int var1, int var2) {
 			cout << "\t" << relOpName <<".r "; print_entry(temp); cout << ","; print_entry(var2); cout << ","; print_entry(var2); cout << ", #lab"+to_string(ret_label) << endl;
 		}
 	}
-	if (symtable[var1].dtype == FLOAT)
+	if (symtable[var1].dtype == FLOAT || symtable[var1].dtype == REF_FLOAT)
 	{
 		temp_counter++;
-		if(symtable[var2].dtype == FLOAT)
+		if(symtable[var2].dtype == FLOAT || symtable[var2].dtype == REF_FLOAT)
 		{
 			cout << "\t" << relOpName <<".r "; print_entry(var1); cout << ","; print_entry(var2); cout << ","; print_entry(var2); cout << ", #lab"+to_string(ret_label) << endl;
 		}
@@ -147,7 +155,7 @@ int genRelOp(relOps relOp, int var1, int var2) {
 %token ARRAY
 
 %%
-program: PROGRAM ID '(' identifier_list ')' ';' declarations subprogram_declarations compound_statement '.'
+program: PROGRAM ID {cout << "\tjump.i #start" << endl;} '(' identifier_list ')' ';' declarations subprogram_declarations {cout << "start:" << endl;} compound_statement '.'
 	;
 
 identifier_list: ID | identifier_list ',' ID
@@ -164,11 +172,11 @@ declarations: declarations VAR {isVarDeclaration=true;} identifier_list ':' type
 	;
 
 /*
-type: standard_type
+type: standard_type {$$ = $1;}
 	;
 */
 
-type: standard_type 
+type: standard_type {$$ = $1;}
 	| ARRAY '[' NUM ARRAY_DELIM NUM ']' OF standard_type
 	;
 
@@ -180,22 +188,69 @@ subprogram_declarations: subprogram_declarations subprogram_declaration ';'
 	|
 	;
 	
-subprogram_declaration: subprogram_head declarations compound_statement
+subprogram_declaration: subprogram_head declarations compound_statement {scopeStack.pop();}
 	;
 	
-subprogram_head: FUNCTION ID arguments ':' standard_type ';'
-	| PROCEDURE ID arguments ';'
+subprogram_head: FUNCTION ID {
+		cout << symtable[$2].name << ":" << endl;
+		scopeStack.push($2);
+		symtable[$2].type = FUN;
+		symtable[$2].value.params.offset_up = 12;
+		symtable[$2].value.params.offset_down = 0;
+		isParamsDeclaration = true;
+		
+	} arguments ':' standard_type ';' {
+		entry e;
+		e.name = symtable[$2].name;
+		e.offset = 8;
+		e.type = PARAM;
+		e.dtype = dataType($6);
+		symtable.push_back(e);
+		symtable[$2].value.params.output = symtable.size() - 1;
+		isParamsDeclaration = false;
+	}
+	| PROCEDURE ID {
+		cout << symtable[$2].name << ":" << endl;
+		scopeStack.push($2);
+		symtable[$2].type = UNDEF;
+		symtable[$2].value.params.offset_up = 8;
+		symtable[$2].value.params.offset_down = 0;
+		isParamsDeclaration = true;
+	} arguments ';' {
+		isParamsDeclaration = false;
+	}
 	;
 
 arguments: '(' parameter_list ')'
 	|
 	;
 
-parameter_list: identifier_list ':' type
-	| parameter_list ';' identifier_list ':' type
+parameter_list: identifier_list ':' type {
+		long currentScope = scopeStack.top();
+		for (auto it = pendingEntries.begin(); it != pendingEntries.end(); ++it) {
+			int index = insert_id (*it, dataType($3));
+			symtable[currentScope].value.params.inputs.push_back(index);
+		}
+		pendingEntries.clear();
+	}
+	| parameter_list ';' identifier_list ':' type {
+		long currentScope = scopeStack.top();
+		for (auto it = pendingEntries.begin(); it != pendingEntries.end(); ++it) {
+			int index = insert_id (*it, dataType($5));
+			symtable[currentScope].value.params.inputs.push_back(index);
+		}
+		pendingEntries.clear();
+	}
 	;
 
-compound_statement: BEGIN_TOK optional_statements END {cout<<"\texit"<<endl;}
+compound_statement: BEGIN_TOK optional_statements END {
+		if (scopeStack.size() > 0) {
+			cout<<"\tleave"<<endl;
+			cout<<"\treturn"<<endl;
+		} else {
+			cout<<"\texit"<<endl;
+		}
+	}
 	;
 
 optional_statements: statement_list
@@ -207,14 +262,14 @@ statement_list: statement
 	;
 
 statement: variable ASSIGNOP expression {
-		if (symtable[$1].dtype == FLOAT) {
-			if (symtable[$3].dtype != FLOAT) {
+		if (symtable[$1].dtype == FLOAT || symtable[$1].dtype == REF_FLOAT) {
+			if (symtable[$3].dtype != FLOAT && symtable[$3].dtype == REF_FLOAT) {
 				cout << "\tinttoreal.i "; print_entry($3); cout << ","; print_entry($1); cout << endl;
 			} else {
 				cout << "\tmov.r "; print_entry($3); cout << ","; print_entry($1); cout << endl;
 			}
 		} else {
-			if (symtable[$3].dtype != INT) {
+			if (symtable[$3].dtype != INT && symtable[$3].dtype == REF_INT) {
 				cout << "\trealtoint.r "; print_entry($3); cout << ","; print_entry($1); cout << endl;
 			} else {
 				cout << "\tmov.i "; print_entry($3); cout << ","; print_entry($1); cout << endl;

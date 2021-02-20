@@ -9,10 +9,10 @@ unsigned last_offset = 0;
 int lookup (string s) 
 {
   for (auto p = symtable.end(); p != symtable.begin(); p--)
-    if (p->name == s) 
-	{
-		return distance(symtable.begin(), p);
-	}
+    if (p->name == s && ((scopeStack.size() != 0 && scopeStack.top() == p->scope) || p->scope == GLOBAL)) 
+    {
+      return distance(symtable.begin(), p);
+    }
   return -1;
 }
 
@@ -25,13 +25,31 @@ int insert_id (string s, dataType dtype)
   e.name = s;
   e.type = VARIABLE;
   e.dtype = dtype;
-  e.offset = last_offset;
-  if (dtype == INT)
-  {
-    last_offset+=4;
-  } else if (dtype == FLOAT)
-  {
-    last_offset+=8;
+  if (isParamsDeclaration) {
+    e.scope = scopeStack.top();
+    e.type = PARAM;
+    e.offset = symtable[scopeStack.top()].value.params.offset_up;
+    symtable[scopeStack.top()].value.params.offset_up += 4;
+  } else if (scopeStack.size() > 0) {
+    e.scope = scopeStack.top();
+    if (dtype == INT)
+    {
+      symtable[scopeStack.top()].value.params.offset_down -= 4;
+    } else if (dtype == FLOAT)
+    {
+      symtable[scopeStack.top()].value.params.offset_down -= 8;
+    }
+    e.offset = symtable[scopeStack.top()].value.params.offset_down;
+  } else {
+    e.scope = GLOBAL;
+    e.offset = last_offset;
+    if (dtype == INT)
+    {
+      last_offset += 4;
+    } else if (dtype == FLOAT)
+    {
+      last_offset += 8;
+    }
   }
   symtable.push_back(e);
   return symtable.size() - 1;
@@ -56,13 +74,21 @@ int insert_num (string s)
 void print_entry(int index) 
 {
   if (symtable[index].type == VARIABLE) {
-    cout << symtable[index].offset;
+    if (scopeStack.size() > 0) {
+      cout << "BP" + to_string(symtable[index].offset);
+    } else {
+      cout << symtable[index].offset;
+    }
   } else if (symtable[index].type == NUMBER) {
     if (symtable[index].dtype == INT) {
       cout << "#" << symtable[index].value.int_val;
-    } else {
+    } else if (symtable[index].dtype == FLOAT) {
       cout << "#" << symtable[index].value.float_val;
     }
+  } else if (symtable[index].type == FUN) {
+    print_entry(symtable[index].value.params.output);
+  } else if (symtable[index].type == PARAM) {
+    cout << "*BP+" << symtable[index].offset;
   }
 }
 
