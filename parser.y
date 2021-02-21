@@ -153,6 +153,8 @@ int genRelOp(relOps relOp, int var1, int var2) {
 %token OF
 %token ARRAY_DELIM
 %token ARRAY
+%token WRITE
+%token READ
 
 %%
 program: PROGRAM ID {cout << "\tjump.i #start" << endl;} '(' identifier_list ')' ';' declarations subprogram_declarations {cout << "start:" << endl;} compound_statement '.'
@@ -323,11 +325,37 @@ variable: ID {$$=$1;}
 	;
 
 procedure_statement: ID
-	| ID {cout<<"write.i ";} '(' expression_list ')' {print_entry($4); cout<<endl;}
+	| WRITE {scopeStack.push($1);} '(' expression_list ')' {
+		scopeStack.pop();
+		for (auto it = symtable[$1].value.params.pendingExpressions.begin(); it != symtable[$1].value.params.pendingExpressions.end(); ++it) {
+			if (symtable[*it].dtype == FLOAT) {
+				cout << "\twrite.r "; print_entry(*it); cout << endl;
+			} else {
+				cout << "\twrite.i "; print_entry(*it); cout << endl;
+			}
+		}
+		symtable[$1].value.params.pendingExpressions.clear();
+	}
+	| READ {scopeStack.push($1);} '(' expression_list ')' {
+		scopeStack.pop();
+		for (auto it = symtable[$1].value.params.pendingExpressions.begin(); it != symtable[$1].value.params.pendingExpressions.end(); ++it) {
+			if (symtable[*it].dtype == FLOAT) {
+				cout << "\tread.r "; print_entry(*it); cout << endl;
+			} else {
+				cout << "\tread.i "; print_entry(*it); cout << endl;
+			}
+		}
+		symtable[$1].value.params.pendingExpressions.clear();
+	}
+	| ID {} '(' expression_list ')' {}
 	;
 
-expression_list: expression
-	| expression_list ',' expression
+expression_list: expression {
+		symtable[scopeStack.top()].value.params.pendingExpressions.push_back($1);
+	}
+	| expression_list ',' expression {
+		symtable[scopeStack.top()].value.params.pendingExpressions.push_back($3);
+	}
 	;
 
 expression: simple_expression {$$=$1;}

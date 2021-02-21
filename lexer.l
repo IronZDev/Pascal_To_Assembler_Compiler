@@ -76,6 +76,14 @@ or          {return OR;}
 not         {return NOT;}
 of          {return OF;}
 {array_delim} {return ARRAY_DELIM;}
+write       {
+                yylval = insert_id("$write", NONE);
+                return WRITE;
+            }
+read        {
+                yylval = insert_id("$read", NONE);
+                return READ;
+            }
 {id}        {
                 int index = lookup(yytext);
                 if(index == -1)

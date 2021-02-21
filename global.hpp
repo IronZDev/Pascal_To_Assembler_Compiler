@@ -31,12 +31,12 @@ struct parameters {
   long offset_down;
   int output;
   vector<int> inputs;
+  vector<int> pendingExpressions;
 };
 struct val {
   int int_val;
   float float_val;
   parameters params;
-  long ref_offset;
 };
 struct entry {
   string name;
