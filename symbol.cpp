@@ -85,7 +85,7 @@ void print_entry(int index, bool preceedHash)
     if (preceedHash) {
       cout << "#";
     }
-    if (scopeStack.size() > 0) {
+    if (scopeStack.size() > 0 && symtable[index].scope != GLOBAL) {
       cout << "BP" + to_string(symtable[index].offset);
     } else {
       cout << symtable[index].offset;

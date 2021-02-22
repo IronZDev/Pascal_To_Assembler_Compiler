@@ -216,6 +216,11 @@ subprogram_head: FUNCTION ID {
 		e.type = PARAM;
 		e.dtype = dataType($6);
 		symtable.push_back(e);
+		if (dataType($6) == REF_INT) {
+			symtable[$2].dtype = INT;
+		} else {
+			symtable[$2].dtype = FLOAT;
+		}
 		symtable[$2].value.params.output = symtable.size() - 1;
 		isParamsDeclaration = false;
 	}
@@ -324,8 +329,8 @@ statement: variable ASSIGNOP expression {
 
 variable: ID {
 		// Make a function call only if we are calling it from outside of it, otherwise return just a pointer to the return value
-		if ((symtable[$1].type == FUN && scopeStack.size() == 0)
-		|| (scopeStack.size() != 0 && scopeStack.top() != symtable[$1].scope)) {
+		if (symtable[$1].type == FUN && (scopeStack.size() == 0
+		|| (scopeStack.size() != 0 && scopeStack.top() != symtable[$1].scope))) {
 			int sp_counter = 0;
 				sp_counter += 4;
 				long output = genTemp(symtable[$1].dtype);
@@ -344,8 +349,9 @@ variable: ID {
 
 procedure_statement: ID {
 		// Make a function call only if we are calling it from outside of it, otherwise return just a pointer to the return value
-		if (scopeStack.size() == 0
-		|| (scopeStack.size() != 0 && scopeStack.top() != symtable[$1].scope)) {
+		if ((symtable[$1].type == FUN || symtable[$1].type == UNDEF) 
+		&& (scopeStack.size() == 0
+		|| (scopeStack.size() != 0 && scopeStack.top() != symtable[$1].scope))) {
 			int sp_counter = 0;
 			if (symtable[$1].type == FUN) {
 				sp_counter += 4;
@@ -397,9 +403,28 @@ procedure_statement: ID {
 		if (symtable[$1].value.params.pendingExpressions.size() != symtable[$1].value.params.inputs.size()) {
 			yyerror("Wrong number of input arguments!");
 		}
+		auto input_ref = symtable[$1].value.params.inputs.rbegin();
 		for (auto it = symtable[$1].value.params.pendingExpressions.begin(); it != symtable[$1].value.params.pendingExpressions.end(); ++it) {
 			sp_counter += 4;
-			cout << "\tpush.i "; print_entry(*it, true); cout << endl;
+			if (symtable[*input_ref].dtype == REF_FLOAT) {
+				if (symtable[*it].dtype == REF_FLOAT || symtable[*it].dtype == FLOAT) {
+					cout << "\tpush.i "; print_entry(*it, true); cout << endl;
+				} else {
+					long converted_val = genTemp(FLOAT);
+					cout << "\tinttoreal.i "; print_entry(*it); cout << ","; print_entry(converted_val); cout << endl;
+					cout << "\tpush.i "; print_entry(converted_val, true); cout << endl;
+				}
+			} else {
+				if (symtable[*it].dtype == REF_INT || symtable[*it].dtype == INT) {
+					cout << "\tpush.i "; print_entry(*it, true); cout << endl;
+				} else {
+					long converted_val = genTemp(INT);
+					cout << "\trealtoint.r "; print_entry(*it); cout << ","; print_entry(converted_val); cout << endl;
+					cout << "\tpush.i "; print_entry(converted_val, true); cout << endl;
+				}
+			}
+			input_ref++;
+			//cout << "\tpush.i "; print_entry(*it, true); cout << endl;
 		}
 		if (symtable[$1].type == FUN) {
 			sp_counter += 4;
@@ -472,13 +497,14 @@ term: factor { $$ = $1; }
 				}
 				break;
 			case 'm':
-				res = genOp("div", $1, $3);
-				if (symtable[res].dtype == FLOAT) {
-					int int_div = genTemp(INT);
-					cout << "\trealtoint.r "; print_entry(res); cout << ","; print_entry(int_div); cout<<endl;
-					res = int_div;
-				}
-				$$ = genOp("sub", $1, res);
+				res = genOp("mod", $1, $3);
+				// if (symtable[res].dtype == FLOAT) {
+				// 	int int_div = genTemp(INT);
+				// 	cout << "\trealtoint.r "; print_entry(res); cout << ","; print_entry(int_div); cout<<endl;
+				// 	res = int_div;
+				// }
+				// $$ = genOp("sub", $1, res);
+				$$ = res;
 				break;
 			case 'a':
 				$$ = genOp("and", $1, $3);
@@ -500,9 +526,29 @@ factor: variable { $$=$1; }
 		if (symtable[$1].value.params.pendingExpressions.size() != symtable[$1].value.params.inputs.size()) {
 			yyerror("Wrong number of input arguments!");
 		}
+		// Convert to proper type
+		auto input_ref = symtable[$1].value.params.inputs.rbegin();
 		for (auto it = symtable[$1].value.params.pendingExpressions.begin(); it != symtable[$1].value.params.pendingExpressions.end(); ++it) {
 			sp_counter += 4;
-			cout << "\tpush.i "; print_entry(*it, true); cout << endl;
+			if (symtable[*input_ref].dtype == REF_FLOAT) {
+				if (symtable[*it].dtype == REF_FLOAT || symtable[*it].dtype == FLOAT) {
+					cout << "\tpush.i "; print_entry(*it, true); cout << endl;
+				} else {
+					long converted_val = genTemp(FLOAT);
+					cout << "\tinttoreal.i "; print_entry(*it); cout << ","; print_entry(converted_val); cout << endl;
+					cout << "\tpush.i "; print_entry(converted_val, true); cout << endl;
+				}
+			} else {
+				if (symtable[*it].dtype == REF_INT || symtable[*it].dtype == INT) {
+					cout << "\tpush.i "; print_entry(*it, true); cout << endl;
+				} else {
+					long converted_val = genTemp(INT);
+					cout << "\trealtoint.r "; print_entry(*it); cout << ","; print_entry(converted_val); cout << endl;
+					cout << "\tpush.i "; print_entry(converted_val, true); cout << endl;
+				}
+			}
+			input_ref++;
+			//cout << "\tpush.i "; print_entry(*it, true); cout << endl;
 		}
 		if (symtable[$1].type == FUN) {
 			sp_counter += 4;
@@ -522,6 +568,10 @@ factor: variable { $$=$1; }
 	| '(' expression ')' { $$ = $2; }
 	| NOT factor {
 		long negated_temp = genTemp(INT);
+		if (symtable[$2].dtype == FLOAT || symtable[$2].dtype == REF_FLOAT) {
+			long converted_to_int = genTemp(INT);
+			cout << "\trealtoint.r "; print_entry($2); cout << ","; print_entry(converted_to_int); cout << endl;
+		}
 		cout << "\tnot.i "; print_entry($2); cout << ","; print_entry(negated_temp); cout << endl;
 		$$ = negated_temp;
 	}

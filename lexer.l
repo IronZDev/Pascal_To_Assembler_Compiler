@@ -92,6 +92,7 @@ read        {
                         pendingEntries.push_back(yytext);
                     } else {
                         // Error code here?
+                        //yyerror("Id: "+string(yytext)+" is referenced before declaration");
                         index = insert_id(yytext, NONE);
                     }
                 // Create a copy to preserve offsets particular to the scope
