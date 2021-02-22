@@ -115,13 +115,3 @@ read {
 %%
 
 int lexan() {return yylex();}
-/*
-%%
-{delim}		{}
-{newline}	{lineno++;}
-{number}	{yylval = atoi(yytext); return(NUM);}
-{word}		{int p = lookup(yytext); if(p == 0) p = insert(yytext, ID); yylval = p; return(symtable[p].token);}
-{symbol}	{yylval = NONE; return(yytext[0]);}
-
-%%
-*/
