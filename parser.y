@@ -4,6 +4,7 @@ int yylex();
 bool isVarDeclaration = false;
 bool isParamsDeclaration = false;
 stack<long> scopeStack;
+stack<long> readStack;
 vector<string> pendingEntries;
 unsigned long temp_counter = 0;
 unsigned long label_counter = 0;
@@ -22,9 +23,9 @@ long getLabel() {
 long genTemp(dataType dtype) {
 	long temp;
 	if (dtype == INT) {
-		temp = insert_id("temp"+to_string(temp_counter), INT);
+		temp = insert_id("$temp"+to_string(temp_counter), INT);
 	} else {
-		temp = insert_id("temp"+to_string(temp_counter), FLOAT);
+		temp = insert_id("$temp"+to_string(temp_counter), FLOAT);
 	}
 	temp_counter++;
 	return temp;
@@ -273,13 +274,13 @@ statement_list: statement
 
 statement: variable ASSIGNOP expression {
 		if (symtable[$1].dtype == FLOAT || symtable[$1].dtype == REF_FLOAT) {
-			if (symtable[$3].dtype != FLOAT && symtable[$3].dtype == REF_FLOAT) {
+			if (symtable[$3].dtype == INT || symtable[$3].dtype == REF_INT) {
 				cout << "\tinttoreal.i "; print_entry($3); cout << ","; print_entry($1); cout << endl;
 			} else {
 				cout << "\tmov.r "; print_entry($3); cout << ","; print_entry($1); cout << endl;
 			}
 		} else {
-			if (symtable[$3].dtype != INT && symtable[$3].dtype == REF_INT) {
+			if (symtable[$3].dtype == FLOAT || symtable[$3].dtype == REF_FLOAT) {
 				cout << "\trealtoint.r "; print_entry($3); cout << ","; print_entry($1); cout << endl;
 			} else {
 				cout << "\tmov.i "; print_entry($3); cout << ","; print_entry($1); cout << endl;
@@ -325,8 +326,8 @@ variable: ID {$$=$1;}
 	;
 
 procedure_statement: ID
-	| WRITE {scopeStack.push($1);} '(' expression_list ')' {
-		scopeStack.pop();
+	| WRITE {readStack.push($1);} '(' expression_list ')' {
+		readStack.pop();
 		for (auto it = symtable[$1].value.params.pendingExpressions.begin(); it != symtable[$1].value.params.pendingExpressions.end(); ++it) {
 			if (symtable[*it].dtype == FLOAT) {
 				cout << "\twrite.r "; print_entry(*it); cout << endl;
@@ -336,8 +337,8 @@ procedure_statement: ID
 		}
 		symtable[$1].value.params.pendingExpressions.clear();
 	}
-	| READ {scopeStack.push($1);} '(' expression_list ')' {
-		scopeStack.pop();
+	| READ {readStack.push($1);} '(' expression_list ')' {
+		readStack.pop();
 		for (auto it = symtable[$1].value.params.pendingExpressions.begin(); it != symtable[$1].value.params.pendingExpressions.end(); ++it) {
 			if (symtable[*it].dtype == FLOAT) {
 				cout << "\tread.r "; print_entry(*it); cout << endl;
@@ -347,14 +348,43 @@ procedure_statement: ID
 		}
 		symtable[$1].value.params.pendingExpressions.clear();
 	}
-	| ID {} '(' expression_list ')' {}
+	| ID {
+			// Handle recurency
+			readStack.push($1);
+			if (scopeStack.size() != 0 && scopeStack.top() == symtable[$1].scope) {
+				symtable[$1].scope = -1;
+			}
+		} '(' expression_list ')' {
+		readStack.pop();
+		int sp_counter = 0;
+		if (symtable[$1].value.params.pendingExpressions.size() != symtable[$1].value.params.inputs.size()) {
+			yyerror("Wrong number of input arguments!");
+		}
+		for (auto it = symtable[$1].value.params.pendingExpressions.begin(); it != symtable[$1].value.params.pendingExpressions.end(); ++it) {
+			sp_counter += 4;
+			cout << "\tpush.i "; print_entry(*it, true); cout << endl;
+		}
+		if (symtable[$1].type == FUN); {
+			sp_counter += 4;
+			long output = genTemp(symtable[$1].dtype);
+			symtable[$1].offset = symtable[output].offset; // Set the offset to the one of the temp value holding the result
+			cout << "\tpush.i "; print_entry(output, true); cout << endl;
+		}
+		// Remove temp symbol from the name of the function
+		string name = symtable[$1].name;
+		name.erase(remove(name.begin(), name.end(), '$'), name.end());
+		cout << "\tcall.i #" + name << endl;
+		cout << "\tincsp.i #" + to_string(sp_counter) << endl;
+		symtable[$1].value.params.pendingExpressions.clear();
+		$$ = $1;
+	}
 	;
 
 expression_list: expression {
-		symtable[scopeStack.top()].value.params.pendingExpressions.push_back($1);
+		symtable[readStack.top()].value.params.pendingExpressions.push_back($1);
 	}
 	| expression_list ',' expression {
-		symtable[scopeStack.top()].value.params.pendingExpressions.push_back($3);
+		symtable[readStack.top()].value.params.pendingExpressions.push_back($3);
 	}
 	;
 
@@ -421,7 +451,36 @@ term: factor { $$ = $1; }
 	;
 
 factor: variable { $$=$1; }
-	| ID '(' expression_list ')' 
+	| ID {
+			// Handle recurency
+			readStack.push($1);
+			if (scopeStack.size() != 0 && scopeStack.top() == symtable[$1].scope) {
+				symtable[$1].scope = -1;
+			}
+		} '(' expression_list ')' {
+		readStack.pop();
+		int sp_counter = 0;
+		if (symtable[$1].value.params.pendingExpressions.size() != symtable[$1].value.params.inputs.size()) {
+			yyerror("Wrong number of input arguments!");
+		}
+		for (auto it = symtable[$1].value.params.pendingExpressions.begin(); it != symtable[$1].value.params.pendingExpressions.end(); ++it) {
+			sp_counter += 4;
+			cout << "\tpush.i "; print_entry(*it, true); cout << endl;
+		}
+		if (symtable[$1].type == FUN); {
+			sp_counter += 4;
+			long output = genTemp(symtable[$1].dtype);
+			symtable[$1].offset = symtable[output].offset; // Set the offset to the one of the temp value holding the result
+			cout << "\tpush.i "; print_entry(output, true); cout << endl;
+		}
+		// Remove temp symbol from the name of the function
+		string name = symtable[$1].name;
+		name.erase(remove(name.begin(), name.end(), '$'), name.end());
+		cout << "\tcall.i #" + name << endl;
+		cout << "\tincsp.i #" + to_string(sp_counter) << endl;
+		symtable[$1].value.params.pendingExpressions.clear();
+		$$ = $1;
+	}
 	| NUM { $$ = $1; }
 	| '(' expression ')' { $$ = $2; }
 	| NOT factor {

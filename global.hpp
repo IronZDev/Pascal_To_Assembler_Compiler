@@ -6,6 +6,7 @@
 #include <vector>
 #include <stack>
 #include <sstream>
+#include <algorithm>
 
 using namespace std;
 
@@ -49,11 +50,12 @@ struct entry {
 extern bool isVarDeclaration;
 extern bool isParamsDeclaration;
 extern stack<long> scopeStack;
+extern stack<long> readStack;
 extern vector<string> pendingEntries;
 extern vector<entry> symtable;
 int insert_id (string s, dataType dtype);
 int insert_num (string s);
-void print_entry(int index);
+void print_entry(int index, bool preceedHash = false);
 void yyerror (string m) ;
 int lookup (string s) ;
 void init () ;

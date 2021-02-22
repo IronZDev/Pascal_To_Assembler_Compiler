@@ -71,24 +71,42 @@ int insert_num (string s)
   return symtable.size() - 1;
 }
 
-void print_entry(int index) 
+void print_entry(int index, bool preceedHash) 
 {
   if (symtable[index].type == VARIABLE) {
+    if (preceedHash) {
+      cout << "#";
+    }
     if (scopeStack.size() > 0) {
       cout << "BP" + to_string(symtable[index].offset);
     } else {
       cout << symtable[index].offset;
     }
   } else if (symtable[index].type == NUMBER) {
+    if (preceedHash) {
+      cout << "#";
+    }
     if (symtable[index].dtype == INT) {
       cout << "#" << symtable[index].value.int_val;
     } else if (symtable[index].dtype == FLOAT) {
       cout << "#" << symtable[index].value.float_val;
     }
   } else if (symtable[index].type == FUN) {
-    print_entry(symtable[index].value.params.output);
+    if (preceedHash) {
+      cout << "#";
+    }
+    if (scopeStack.size() != 0 && (scopeStack.top() == symtable[index].scope || scopeStack.top() == index)) {
+      print_entry(symtable[index].value.params.output);
+    } else if (scopeStack.size() != 0) {
+      cout << "BP" + to_string(symtable[index].offset);
+    } else {
+      cout << symtable[index].offset;
+    }
   } else if (symtable[index].type == PARAM) {
-    cout << "*BP+" << symtable[index].offset;
+    if (preceedHash) {
+      cout << "BP+" << symtable[index].offset;
+    } else {
+      cout << "*BP+" << symtable[index].offset;    }
   }
 }
 

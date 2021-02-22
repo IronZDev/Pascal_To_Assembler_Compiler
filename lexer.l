@@ -91,8 +91,16 @@ read        {
                     if (isVarDeclaration || isParamsDeclaration) {
                         pendingEntries.push_back(yytext);
                     } else {
+                        // Error code here?
                         index = insert_id(yytext, NONE);
                     }
+                // Create a copy to preserve offsets particular to the scope
+                } else if(symtable[index].type == FUN || symtable[index].type == UNDEF) {
+                    entry copy = symtable[index];
+                    copy.name = "$"+symtable[index].name;
+                    copy.scope = index;
+                    symtable.push_back(copy);
+                    index = symtable.size() - 1;
                 }
                 yylval = index;
                 return ID;
