@@ -320,7 +320,7 @@ statement: variable ASSIGNOP expression {
 	expression {
 		long exit_loop = getLabel();
 		$$ = exit_loop;
-		cout << "\tjeq.i #0,"; print_entry($3); cout << ",#lab"+to_string(exit_loop) << endl;
+		cout << "\tje.i #0,"; print_entry($3); cout << ",#lab"+to_string(exit_loop) << endl;
 	} DO statement {
 		cout << "\tjump.i #lab" + to_string($2) << endl;
 		cout << "lab"+to_string($4)+":" << endl;

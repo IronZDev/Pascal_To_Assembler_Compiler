@@ -7,29 +7,29 @@
 %}
 
 /* regular definitions */
-delim				[ \t]+
-newline				[\n]
-digit				[0-9]
-letter				[A-Za-z]
-id					{letter}({letter}|{digit})*
-digits				{digit}+
-optional_fraction	.{digits}
-optional_exponent	E(\+|-){digits}
-num                 {digits}{optional_fraction}?{optional_exponent}?
-relop				=|<>|<|<=|>=|>
-sign				\+|-
-mulop				\*|\/|div|mod|and
-assignop			:=
-array_delim         \.\.
+delim [ \t]*
+newline [\n]
+digit [0-9]
+letter [A-Za-z]
+id {letter}({letter}|{digit})*
+digits {digit}+
+optional_fraction \.{digits}
+optional_exponent E(\+|-){digits}
+num {digits}{optional_fraction}?{optional_exponent}?
+relop =|<>|<|<=|>=|>
+sign \+|-
+mulop \*|\/|div|mod|and
+assignop :=
+array_delim \.\.
 
 %%
-{delim}		{}
-{newline}	{lineno++;}
-program		{return PROGRAM;}
-function	{return FUNCTION;}
-procedure	{return PROCEDURE;}
-array       {return ARRAY;}
-integer     {
+{delim} {}
+{newline} {lineno++;}
+program {return PROGRAM;}
+function {return FUNCTION;}
+procedure {return PROCEDURE;}
+array {return ARRAY;}
+integer {
         if (isParamsDeclaration) {
             yylval = REF_INT;
         } else {
@@ -37,23 +37,23 @@ integer     {
         }
         return INTEGER;
     }
-real        {
+real {
         if (isParamsDeclaration) {
             yylval = REF_FLOAT;
         } else {
             yylval = FLOAT;
         } return REAL;
     }
-var         {return VAR;}
-begin       {return BEGIN_TOK;}
-end         {return END;}
-{assignop}  {return ASSIGNOP;}
-if          {return IF;}
-then        {return THEN;}
-else        {return ELSE;}
-while       {return WHILE;}
-do          {return DO;}
-{relop}     {
+var {return VAR;}
+begin {return BEGIN_TOK;}
+end {return END;}
+{assignop} {return ASSIGNOP;}
+if {return IF;}
+then {return THEN;}
+else {return ELSE;}
+while {return WHILE;}
+do {return DO;}
+{relop} {
                 string op = (string)yytext;
                 if (op == "=") {
                     yylval = EQUAL;
@@ -70,21 +70,21 @@ do          {return DO;}
                 }
                 return RELOP;
             }
-{sign}      {yylval = (int)yytext[0]; return SIGN;}
-or          {return OR;}
-{mulop}     {yylval = (int)yytext[0]; return MULOP;}
-not         {return NOT;}
-of          {return OF;}
+{sign} {yylval = (int)yytext[0]; return SIGN;}
+or {return OR;}
+{mulop} {yylval = (int)yytext[0]; return MULOP;}
+not {return NOT;}
+of {return OF;}
 {array_delim} {return ARRAY_DELIM;}
-write       {
+write {
                 yylval = insert_id("$write", NONE);
                 return WRITE;
             }
-read        {
+read {
                 yylval = insert_id("$read", NONE);
                 return READ;
             }
-{id}        {
+{id} {
                 int index = lookup(yytext);
                 if(index == -1)
                 {   
@@ -106,11 +106,11 @@ read        {
                 yylval = index;
                 return ID;
             }
-{num}       {
+{num} {
                 yylval = insert_num(yytext);
                 return NUM;
             }
-.           {return *yytext;}
+. {return *yytext;}
 
 %%
 

@@ -7,6 +7,7 @@
 #include <stack>
 #include <sstream>
 #include <algorithm>
+#include <fstream>
 
 using namespace std;
 
@@ -20,7 +21,9 @@ using namespace std;
 
 static stringstream redirectStream;
 static streambuf* oldbuf;
-
+static streambuf* consolebuf;
+static ofstream out("out.asm");
+extern FILE* yyin;
 
 extern int tokenval;
 extern int lineno;

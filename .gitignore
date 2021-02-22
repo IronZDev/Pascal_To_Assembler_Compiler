@@ -10,3 +10,4 @@
 /parser.hpp
 /parser.o
 /symbol.o
+out.asm
