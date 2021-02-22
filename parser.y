@@ -33,26 +33,25 @@ long genTemp(dataType dtype) {
 
 int genOp(string op,int var1, int var2) {
 	int ret;
+	// If both int leave int, if one is real all to real
 	if (symtable[var1].dtype == INT || symtable[var1].dtype == REF_INT)
 	{
-		ret = genTemp(INT);
-		temp_counter++;
 		if(symtable[var2].dtype == INT || symtable[var2].dtype == REF_INT)
 		{
+			ret = genTemp(INT);
 			cout << "\t" << op <<".i "; print_entry(var1); cout << ","; print_entry(var2); cout << ","; print_entry(ret); cout << endl;
 		}
 		else 
 		{
-			int temp = genTemp(INT);
-			temp_counter++;
-			cout << "\trealtoint.r "; print_entry(var2); cout << ","; print_entry(temp); cout << endl;
-			cout << "\t" << op <<".i "; print_entry(var1); cout << ","; print_entry(temp); cout << ","; print_entry(ret); cout << endl;
+			ret = genTemp(FLOAT);
+			int temp = genTemp(FLOAT);
+			cout << "\tinttoreal.i "; print_entry(var1); cout << ","; print_entry(temp); cout << endl;
+			cout << "\t" << op <<".r "; print_entry(temp); cout << ","; print_entry(var2); cout << ","; print_entry(ret); cout << endl;
 		}
 	}
 	if (symtable[var1].dtype == FLOAT || symtable[var1].dtype == REF_FLOAT)
 	{
 		ret = genTemp(FLOAT);
-		temp_counter++;
 		if(symtable[var2].dtype == FLOAT || symtable[var2].dtype == REF_FLOAT)
 		{
 			cout << "\t" << op <<".r "; print_entry(var1); cout << ","; print_entry(var2); cout << ","; print_entry(ret); cout << endl;
@@ -60,7 +59,6 @@ int genOp(string op,int var1, int var2) {
 		else
 		{
 			int temp = genTemp(FLOAT);
-			temp_counter++;
 			cout << "\tinttoreal.i "; print_entry(var2); cout << ","; print_entry(temp); cout << endl;
 			cout << "\t" << op <<".r "; print_entry(var1); cout << ","; print_entry(temp); cout << ","; print_entry(ret); cout << endl;
 		}
@@ -158,7 +156,7 @@ int genRelOp(relOps relOp, int var1, int var2) {
 %token READ
 
 %%
-program: PROGRAM ID {cout << "\tjump.i #start" << endl;} '(' identifier_list ')' ';' declarations subprogram_declarations {cout << "start:" << endl;} compound_statement '.'
+program: PROGRAM ID {cout << "\tjump.i #start" << endl;} '(' identifier_list ')' ';' declarations subprogram_declarations {cout << "start:" << endl;} compound_statement '.' {cout<<"\texit"<<endl;}
 	;
 
 identifier_list: ID | identifier_list ',' ID
@@ -264,8 +262,6 @@ compound_statement: BEGIN_TOK optional_statements END {
 		if (scopeStack.size() > 0) {
 			cout<<"\tleave"<<endl;
 			cout<<"\treturn"<<endl;
-		} else {
-			cout<<"\texit"<<endl;
 		}
 	}
 	;
