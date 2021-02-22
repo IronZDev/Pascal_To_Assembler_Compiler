@@ -8,8 +8,16 @@ unsigned last_offset = 0;
 
 int lookup (string s) 
 {
+  // First look in local scope, then check in global scope
+  if (scopeStack.size() != 0) {
+    for (auto p = symtable.end(); p != symtable.begin(); p--)
+      if (p->name == s && scopeStack.top() == p->scope) 
+      {
+        return distance(symtable.begin(), p);
+      }
+  }
   for (auto p = symtable.end(); p != symtable.begin(); p--)
-    if (p->name == s && ((scopeStack.size() != 0 && scopeStack.top() == p->scope) || p->scope == GLOBAL)) 
+    if (p->name == s && p->scope == GLOBAL) 
     {
       return distance(symtable.begin(), p);
     }

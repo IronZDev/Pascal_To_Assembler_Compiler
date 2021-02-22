@@ -238,7 +238,8 @@ arguments: '(' parameter_list ')'
 
 parameter_list: identifier_list ':' type {
 		long currentScope = scopeStack.top();
-		for (auto it = pendingEntries.begin(); it != pendingEntries.end(); ++it) {
+		// Add parameter from last to first to maintain correct order on stack
+		for (auto it = pendingEntries.rbegin(); it != pendingEntries.rend(); ++it) {
 			int index = insert_id (*it, dataType($3));
 			symtable[currentScope].value.params.inputs.push_back(index);
 		}
@@ -246,7 +247,7 @@ parameter_list: identifier_list ':' type {
 	}
 	| parameter_list ';' identifier_list ':' type {
 		long currentScope = scopeStack.top();
-		for (auto it = pendingEntries.begin(); it != pendingEntries.end(); ++it) {
+		for (auto it = pendingEntries.rbegin(); it != pendingEntries.rend(); ++it) {
 			int index = insert_id (*it, dataType($5));
 			symtable[currentScope].value.params.inputs.push_back(index);
 		}
@@ -321,11 +322,47 @@ statement: variable ASSIGNOP expression {
 	}
 	;
 
-variable: ID {$$=$1;}	
+variable: ID {
+		// Make a function call only if we are calling it from outside of it, otherwise return just a pointer to the return value
+		if ((symtable[$1].type == FUN && scopeStack.size() == 0)
+		|| (scopeStack.size() != 0 && scopeStack.top() != symtable[$1].scope)) {
+			int sp_counter = 0;
+				sp_counter += 4;
+				long output = genTemp(symtable[$1].dtype);
+				symtable[$1].offset = symtable[output].offset; // Set the offset to the one of the temp value holding the result
+				cout << "\tpush.i "; print_entry(output, true); cout << endl;
+			// Remove temp symbol from the name of the function
+			string name = symtable[$1].name;
+			name.erase(remove(name.begin(), name.end(), '$'), name.end());
+			cout << "\tcall.i #" + name << endl;
+			cout << "\tincsp.i #" + to_string(sp_counter) << endl;
+		}
+		$$ = $1;
+	}	
 	| ID '[' expression ']'
 	;
 
-procedure_statement: ID
+procedure_statement: ID {
+		// Make a function call only if we are calling it from outside of it, otherwise return just a pointer to the return value
+		if (scopeStack.size() == 0
+		|| (scopeStack.size() != 0 && scopeStack.top() != symtable[$1].scope)) {
+			int sp_counter = 0;
+			if (symtable[$1].type == FUN) {
+				sp_counter += 4;
+				long output = genTemp(symtable[$1].dtype);
+				symtable[$1].offset = symtable[output].offset; // Set the offset to the one of the temp value holding the result
+				cout << "\tpush.i "; print_entry(output, true); cout << endl;
+			}
+			// Remove temp symbol from the name of the function
+			string name = symtable[$1].name;
+			name.erase(remove(name.begin(), name.end(), '$'), name.end());
+			cout << "\tcall.i #" + name << endl;
+			if (symtable[$1].type == FUN) {
+				cout << "\tincsp.i #" + to_string(sp_counter) << endl;
+			}
+		}
+		$$ = $1;
+	}
 	| WRITE {readStack.push($1);} '(' expression_list ')' {
 		readStack.pop();
 		for (auto it = symtable[$1].value.params.pendingExpressions.begin(); it != symtable[$1].value.params.pendingExpressions.end(); ++it) {
@@ -364,7 +401,7 @@ procedure_statement: ID
 			sp_counter += 4;
 			cout << "\tpush.i "; print_entry(*it, true); cout << endl;
 		}
-		if (symtable[$1].type == FUN); {
+		if (symtable[$1].type == FUN) {
 			sp_counter += 4;
 			long output = genTemp(symtable[$1].dtype);
 			symtable[$1].offset = symtable[output].offset; // Set the offset to the one of the temp value holding the result
@@ -467,7 +504,7 @@ factor: variable { $$=$1; }
 			sp_counter += 4;
 			cout << "\tpush.i "; print_entry(*it, true); cout << endl;
 		}
-		if (symtable[$1].type == FUN); {
+		if (symtable[$1].type == FUN) {
 			sp_counter += 4;
 			long output = genTemp(symtable[$1].dtype);
 			symtable[$1].offset = symtable[output].offset; // Set the offset to the one of the temp value holding the result
