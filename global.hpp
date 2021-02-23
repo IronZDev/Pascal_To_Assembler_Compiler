@@ -50,11 +50,15 @@ struct entry {
   val value;
   int scope;
 };
+struct pendingEntry {
+  string name;
+  dataType dtype;
+};
 extern bool isVarDeclaration;
 extern bool isParamsDeclaration;
 extern stack<long> scopeStack;
 extern stack<long> readStack;
-extern vector<string> pendingEntries;
+extern vector<pendingEntry> pendingEntries;
 extern vector<entry> symtable;
 int insert_id (string s, dataType dtype);
 int insert_num (string s);

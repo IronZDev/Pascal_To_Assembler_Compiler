@@ -86,10 +86,12 @@ read {
             }
 {id} {
                 int index = lookup(yytext);
-                if(index == -1)
+                if(index == -1 || isVarDeclaration || isParamsDeclaration)
                 {   
                     if (isVarDeclaration || isParamsDeclaration) {
-                        pendingEntries.push_back(yytext);
+                        pendingEntry pentry;
+                        pentry.name = yytext;
+                        pendingEntries.push_back(pentry);
                     } else {
                         // Error code here?
                         //yyerror("Id: "+string(yytext)+" is referenced before declaration");

@@ -91,9 +91,6 @@ void print_entry(int index, bool preceedHash)
       cout << symtable[index].offset;
     }
   } else if (symtable[index].type == NUMBER) {
-    if (preceedHash) {
-      cout << "#";
-    }
     if (symtable[index].dtype == INT) {
       cout << "#" << symtable[index].value.int_val;
     } else if (symtable[index].dtype == FLOAT) {

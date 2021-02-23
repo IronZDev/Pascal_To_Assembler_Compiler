@@ -5,7 +5,7 @@ bool isVarDeclaration = false;
 bool isParamsDeclaration = false;
 stack<long> scopeStack;
 stack<long> readStack;
-vector<string> pendingEntries;
+vector<pendingEntry> pendingEntries;
 unsigned long temp_counter = 0;
 unsigned long label_counter = 0;
 unsigned long fun_proc_counter = 0;
@@ -165,7 +165,7 @@ identifier_list: ID | identifier_list ',' ID
 declarations: declarations VAR {isVarDeclaration=true;} identifier_list ':' type {
 		isVarDeclaration = false;
 		for (auto it = pendingEntries.begin(); it != pendingEntries.end(); ++it) {
-			insert_id (*it, dataType($6));
+			insert_id (it->name, dataType($6));
 		}
 		pendingEntries.clear();
 	} ';'
@@ -208,6 +208,12 @@ subprogram_head: FUNCTION ID {
 		isParamsDeclaration = true;
 		oldbuf = cout.rdbuf(redirectStream.rdbuf());
 	} arguments ':' standard_type ';' {
+		long currentScope = scopeStack.top();
+		for (auto it = pendingEntries.rbegin(); it != pendingEntries.rend(); ++it) {
+			int index = insert_id (it->name, it->dtype);
+			symtable[currentScope].value.params.inputs.push_back(index);
+		}
+		pendingEntries.clear();
 		entry e;
 		e.name = symtable[$2].name;
 		e.offset = 8;
@@ -231,6 +237,12 @@ subprogram_head: FUNCTION ID {
 		isParamsDeclaration = true;
 		oldbuf = cout.rdbuf(redirectStream.rdbuf());
 	} arguments ';' {
+		long currentScope = scopeStack.top();
+		for (auto it = pendingEntries.rbegin(); it != pendingEntries.rend(); ++it) {
+			int index = insert_id (it->name, it->dtype);
+			symtable[currentScope].value.params.inputs.push_back(index);
+		}
+		pendingEntries.clear();
 		isParamsDeclaration = false;
 	}
 	;
@@ -240,21 +252,21 @@ arguments: '(' parameter_list ')'
 	;
 
 parameter_list: identifier_list ':' type {
-		long currentScope = scopeStack.top();
 		// Add parameter from last to first to maintain correct order on stack
 		for (auto it = pendingEntries.rbegin(); it != pendingEntries.rend(); ++it) {
-			int index = insert_id (*it, dataType($3));
-			symtable[currentScope].value.params.inputs.push_back(index);
+			//int index = insert_id (*it, dataType($3));
+			//symtable[currentScope].value.params.inputs.push_back(index);
+			it->dtype = dataType($3);
 		}
-		pendingEntries.clear();
+		//pendingEntries.clear();
 	}
 	| parameter_list ';' identifier_list ':' type {
-		long currentScope = scopeStack.top();
 		for (auto it = pendingEntries.rbegin(); it != pendingEntries.rend(); ++it) {
-			int index = insert_id (*it, dataType($5));
-			symtable[currentScope].value.params.inputs.push_back(index);
+			//int index = insert_id (*it, dataType($5));
+			//symtable[currentScope].value.params.inputs.push_back(index);
+			it->dtype = dataType($5);
 		}
-		pendingEntries.clear();
+		//pendingEntries.clear();
 	}
 	;
 
@@ -526,6 +538,8 @@ factor: variable { $$=$1; }
 		auto input_ref = symtable[$1].value.params.inputs.rbegin();
 		for (auto it = symtable[$1].value.params.pendingExpressions.begin(); it != symtable[$1].value.params.pendingExpressions.end(); ++it) {
 			sp_counter += 4;
+			//cout << "Orig" + symtable[*it].name << endl;
+			//cout << "Ref" + symtable[*input_ref].name << endl;
 			if (symtable[*input_ref].dtype == REF_FLOAT) {
 				if (symtable[*it].dtype == REF_FLOAT || symtable[*it].dtype == FLOAT) {
 					cout << "\tpush.i "; print_entry(*it, true); cout << endl;
