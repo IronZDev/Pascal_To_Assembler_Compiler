@@ -455,10 +455,30 @@ procedure_statement: ID {
 	;
 
 expression_list: expression {
-		symtable[readStack.top()].value.params.pendingExpressions.push_back($1);
+		if(symtable[$1].type == NUMBER) {
+			long temp = genTemp(symtable[$1].dtype);
+			if (symtable[$1].dtype == FLOAT) {
+				cout << "\tmov.r "; print_entry($1); cout << ","; print_entry(temp); cout<<endl;
+			} else {
+				cout << "\tmov.i "; print_entry($1); cout << ","; print_entry(temp); cout<<endl;
+			}
+			symtable[readStack.top()].value.params.pendingExpressions.push_back(temp);
+		} else {
+			symtable[readStack.top()].value.params.pendingExpressions.push_back($1);
+		}
 	}
 	| expression_list ',' expression {
-		symtable[readStack.top()].value.params.pendingExpressions.push_back($3);
+		if(symtable[$3].type == NUMBER) {
+			long temp = genTemp(symtable[$3].dtype);
+			if (symtable[$3].dtype == FLOAT) {
+				cout << "\tmov.r "; print_entry($3); cout << ","; print_entry(temp); cout<<endl;
+			} else {
+				cout << "\tmov.i "; print_entry($3); cout << ","; print_entry(temp); cout<<endl;
+			}
+			symtable[readStack.top()].value.params.pendingExpressions.push_back(temp);
+		} else {
+			symtable[readStack.top()].value.params.pendingExpressions.push_back($3);
+		}
 	}
 	;
 
