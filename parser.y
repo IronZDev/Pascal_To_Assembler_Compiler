@@ -72,22 +72,22 @@ int genRelOp(relOps relOp, int var1, int var2) {
 	string relOpName;
 	switch (relOp) {
 		case EQUAL:
-			relOpName = "jne";
-			break;
-		case NOT_EQUAL:
 			relOpName = "je";
 			break;
+		case NOT_EQUAL:
+			relOpName = "jne";
+			break;
 		case SMALLER:
-			relOpName = "jge";
-			break;
-		case SMALLER_EQUAL:
-			relOpName = "jg";
-			break;
-		case GREATER_EQUAL:
 			relOpName = "jl";
 			break;
-		case GREATER:
+		case SMALLER_EQUAL:
 			relOpName = "jle";
+			break;
+		case GREATER_EQUAL:
+			relOpName = "jge";
+			break;
+		case GREATER:
+			relOpName = "jg";
 			break;
 	}
 	if (symtable[var1].dtype == INT || symtable[var1].dtype == REF_INT)
@@ -108,21 +108,21 @@ int genRelOp(relOps relOp, int var1, int var2) {
 		temp_counter++;
 		if(symtable[var2].dtype == FLOAT || symtable[var2].dtype == REF_FLOAT)
 		{
-			cout << "\t" << relOpName <<".r "; print_entry(var1); cout << ","; print_entry(var2); cout << ","; print_entry(var2); cout << ", #lab"+to_string(ret_label) << endl;
+			cout << "\t" << relOpName <<".r "; print_entry(var1); cout << ","; print_entry(var2); cout << ", #lab"+to_string(ret_label) << endl;
 		}
 		else
 		{
 			int temp = genTemp(FLOAT);
 			temp_counter++;
 			cout << "\tinttoreal.i "; print_entry(var2); cout << ","; print_entry(temp); cout << endl;
-			cout << "\t" << relOpName <<".r "; print_entry(var1); cout << ","; print_entry(temp); cout << ","; print_entry(var2); cout << ", #lab"+to_string(ret_label) << endl;
+			cout << "\t" << relOpName <<".r "; print_entry(var1); cout << ","; print_entry(temp); cout << ", #lab"+to_string(ret_label) << endl;
 		}
 	}
 	long end_if_label = getLabel();
-	cout << "\tmov.i #1,"; print_entry(ret_bool); cout << endl;
+	cout << "\tmov.i #0,"; print_entry(ret_bool); cout << endl;
 	cout << "\tjump.i #lab"+to_string(end_if_label) << endl;
 	cout << "lab" + to_string(ret_label) + ":" << endl;
-	cout << "\tmov.i #0,"; print_entry(ret_bool); cout << endl;
+	cout << "\tmov.i #1,"; print_entry(ret_bool); cout << endl;
 	cout << "lab" + to_string(end_if_label) +  ":" << endl;
 	return ret_bool;
 }
@@ -310,7 +310,11 @@ statement: variable ASSIGNOP expression {
 	expression {
 		long if_false = getLabel();
 		$$ = if_false;
-		cout << "\tje.i #0,"; print_entry($3); cout << ", #lab"+to_string(if_false) << endl;
+		if (symtable[$3].dtype == FLOAT || symtable[$3].dtype == REF_FLOAT) {
+			cout << "\tje.r #0,"; print_entry($3); cout << ", #lab"+to_string(if_false) << endl;
+		} else {
+			cout << "\tje.i #0,"; print_entry($3); cout << ", #lab"+to_string(if_false) << endl;
+		}
 	}
 	THEN 
 	statement {
