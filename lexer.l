@@ -29,21 +29,8 @@ program {return PROGRAM;}
 function {return FUNCTION;}
 procedure {return PROCEDURE;}
 array {return ARRAY;}
-integer {
-        if (isParamsDeclaration) {
-            yylval = REF_INT;
-        } else {
-            yylval = INT;
-        }
-        return INTEGER;
-    }
-real {
-        if (isParamsDeclaration) {
-            yylval = REF_FLOAT;
-        } else {
-            yylval = FLOAT;
-        } return REAL;
-    }
+integer {return INTEGER;}
+real {return REAL;}
 var {return VAR;}
 begin {return BEGIN_TOK;}
 end {return END;}
@@ -86,24 +73,8 @@ read {
             }
 {id} {
                 int index = lookup(yytext);
-                if(index == -1 || isVarDeclaration || isParamsDeclaration)
-                {   
-                    if (isVarDeclaration || isParamsDeclaration) {
-                        pendingEntry pentry;
-                        pentry.name = yytext;
-                        pendingEntries.push_back(pentry);
-                    } else {
-                        // Error code here?
-                        //yyerror("Id: "+string(yytext)+" is referenced before declaration");
-                        index = insert_id(yytext, NONE);
-                    }
-                // Create a copy to preserve offsets particular to the scope
-                } else if(symtable[index].type == FUN || symtable[index].type == UNDEF) {
-                    entry copy = symtable[index];
-                    copy.name = "$"+symtable[index].name;
-                    copy.scope = index;
-                    symtable.push_back(copy);
-                    index = symtable.size() - 1;
+                if (index == -1) {
+                    index = insert_id(yytext, NONE);
                 }
                 yylval = index;
                 return ID;

@@ -27,6 +27,7 @@ extern FILE* yyin;
 
 extern int tokenval;
 extern int lineno;
+extern unsigned last_offset;
 enum dataType{FLOAT, INT, REF_INT, REF_FLOAT, NONE};
 enum entryType{VARIABLE, PARAM, NUMBER, FUN, UNDEF};
 enum relOps{EQUAL, NOT_EQUAL, SMALLER, SMALLER_EQUAL, GREATER_EQUAL, GREATER};
@@ -58,7 +59,7 @@ extern bool isVarDeclaration;
 extern bool isParamsDeclaration;
 extern stack<long> scopeStack;
 extern stack<long> readStack;
-extern vector<pendingEntry> pendingEntries;
+extern vector<long> pendingEntries;
 extern vector<entry> symtable;
 int insert_id (string s, dataType dtype);
 int insert_num (string s);

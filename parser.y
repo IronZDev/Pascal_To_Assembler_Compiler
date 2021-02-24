@@ -5,7 +5,7 @@ bool isVarDeclaration = false;
 bool isParamsDeclaration = false;
 stack<long> scopeStack;
 stack<long> readStack;
-vector<pendingEntry> pendingEntries;
+vector<long> pendingEntries;
 unsigned long temp_counter = 0;
 unsigned long label_counter = 0;
 unsigned long fun_proc_counter = 0;
@@ -19,6 +19,14 @@ long getLabel() {
 	label_counter++;
 	return label_counter;
 };
+
+long createFunProcCopy (long index) {
+	entry copy = symtable[index];
+    copy.name = "$"+symtable[index].name;
+    copy.scope = index;
+    symtable.push_back(copy);
+	return symtable.size() - 1;
+}
 
 long genTemp(dataType dtype) {
 	long temp;
@@ -156,17 +164,48 @@ int genRelOp(relOps relOp, int var1, int var2) {
 %token READ
 
 %%
-program: PROGRAM ID {cout << "\tjump.i #start" << endl;} '(' identifier_list ')' ';' declarations subprogram_declarations {cout << "start:" << endl;} compound_statement '.' {cout<<"\texit"<<endl;}
+program: PROGRAM ID {cout << "\tjump.i #start" << endl;} '(' identifier_list ')' {pendingEntries.clear();} ';' declarations subprogram_declarations {cout << "start:" << endl;} compound_statement '.' {cout<<"\texit"<<endl;}
 	;
 
-identifier_list: ID | identifier_list ',' ID
+identifier_list: ID {
+		// Handle local variables shadowing the global ones
+		if (scopeStack.size() != 0 && symtable[$1].scope != scopeStack.top()) {
+			$1 = insert_id(symtable[$1].name, NONE);
+		}
+        pendingEntries.push_back($1);
+	} | identifier_list ',' ID {
+		// Handle local variables shadowing the global ones
+		if (scopeStack.size() != 0 && symtable[$3].scope != scopeStack.top()) {
+			$3 = insert_id(symtable[$3].name, NONE);
+		}
+        pendingEntries.push_back($3);
+	}
 	;
 
 declarations: declarations VAR {isVarDeclaration=true;} identifier_list ':' type {
 		isVarDeclaration = false;
 		for (auto it = pendingEntries.begin(); it != pendingEntries.end(); ++it) {
-			insert_id (it->name, dataType($6));
-		}
+			if (scopeStack.size() != 0) {
+				if (dataType($6) == INT)
+				{
+					symtable[scopeStack.top()].value.params.offset_down -= 4;
+				} else if (dataType($6) == FLOAT)
+				{
+					symtable[scopeStack.top()].value.params.offset_down -= 8;
+				}
+				symtable[*it].offset = symtable[scopeStack.top()].value.params.offset_down;
+			} else {
+				symtable[*it].offset = last_offset;
+				if (dataType($6) == INT)
+				{
+					last_offset += 4;
+				} else if (dataType($6) == FLOAT)
+				{
+					last_offset += 8;
+				}
+			}
+			symtable[*it].dtype = dataType($6);
+		} 
 		pendingEntries.clear();
 	} ';'
 	|
@@ -181,8 +220,20 @@ type: standard_type {$$ = $1;}
 	| ARRAY '[' NUM ARRAY_DELIM NUM ']' OF standard_type
 	;
 
-standard_type: INTEGER
-	| REAL
+standard_type: INTEGER {
+		if (isParamsDeclaration) {
+            $$ = REF_INT;
+        } else {
+            $$ = INT;
+        }
+	}
+	| REAL {
+		if (isParamsDeclaration) {
+            $$ = REF_FLOAT;
+        } else {
+            $$ = FLOAT;
+        }
+	}
 	;
 
 subprogram_declarations: subprogram_declarations subprogram_declaration ';'
@@ -210,8 +261,9 @@ subprogram_head: FUNCTION ID {
 	} arguments ':' standard_type ';' {
 		long currentScope = scopeStack.top();
 		for (auto it = pendingEntries.rbegin(); it != pendingEntries.rend(); ++it) {
-			int index = insert_id (it->name, it->dtype);
-			symtable[currentScope].value.params.inputs.push_back(index);
+			symtable[*it].offset = symtable[currentScope].value.params.offset_up;
+    		symtable[currentScope].value.params.offset_up += 4;
+			symtable[currentScope].value.params.inputs.push_back(*it);
 		}
 		pendingEntries.clear();
 		entry e;
@@ -239,8 +291,9 @@ subprogram_head: FUNCTION ID {
 	} arguments ';' {
 		long currentScope = scopeStack.top();
 		for (auto it = pendingEntries.rbegin(); it != pendingEntries.rend(); ++it) {
-			int index = insert_id (it->name, it->dtype);
-			symtable[currentScope].value.params.inputs.push_back(index);
+			symtable[*it].offset = symtable[currentScope].value.params.offset_up;
+    		symtable[currentScope].value.params.offset_up += 4;
+			symtable[currentScope].value.params.inputs.push_back(*it);
 		}
 		pendingEntries.clear();
 		isParamsDeclaration = false;
@@ -256,7 +309,7 @@ parameter_list: identifier_list ':' type {
 		for (auto it = pendingEntries.rbegin(); it != pendingEntries.rend(); ++it) {
 			//int index = insert_id (*it, dataType($3));
 			//symtable[currentScope].value.params.inputs.push_back(index);
-			it->dtype = dataType($3);
+			symtable[*it].dtype = dataType($3);
 		}
 		//pendingEntries.clear();
 	}
@@ -264,7 +317,7 @@ parameter_list: identifier_list ':' type {
 		for (auto it = pendingEntries.rbegin(); it != pendingEntries.rend(); ++it) {
 			//int index = insert_id (*it, dataType($5));
 			//symtable[currentScope].value.params.inputs.push_back(index);
-			it->dtype = dataType($5);
+			symtable[*it].dtype = dataType($5);
 		}
 		//pendingEntries.clear();
 	}
@@ -340,14 +393,17 @@ statement: variable ASSIGNOP expression {
 	;
 
 variable: ID {
+		if (symtable[$1].type == FUN) {
+			$1 = createFunProcCopy($1);
+		}
 		// Make a function call only if we are calling it from outside of it, otherwise return just a pointer to the return value
 		if (symtable[$1].type == FUN && (scopeStack.size() == 0
 		|| (scopeStack.size() != 0 && scopeStack.top() != symtable[$1].scope))) {
 			int sp_counter = 0;
-				sp_counter += 4;
-				long output = genTemp(symtable[$1].dtype);
-				symtable[$1].offset = symtable[output].offset; // Set the offset to the one of the temp value holding the result
-				cout << "\tpush.i "; print_entry(output, true); cout << endl;
+			sp_counter += 4;
+			long output = genTemp(symtable[$1].dtype);
+			symtable[$1].offset = symtable[output].offset; // Set the offset to the one of the temp value holding the result
+			cout << "\tpush.i "; print_entry(output, true); cout << endl;
 			// Remove temp symbol from the name of the function
 			string name = symtable[$1].name;
 			name.erase(remove(name.begin(), name.end(), '$'), name.end());
@@ -360,6 +416,7 @@ variable: ID {
 	;
 
 procedure_statement: ID {
+		$1 = createFunProcCopy($1);
 		// Make a function call only if we are calling it from outside of it, otherwise return just a pointer to the return value
 		if ((symtable[$1].type == FUN || symtable[$1].type == UNDEF) 
 		&& (scopeStack.size() == 0
@@ -404,6 +461,7 @@ procedure_statement: ID {
 		symtable[$1].value.params.pendingExpressions.clear();
 	}
 	| ID {
+            $1 = createFunProcCopy($1);
 			// Handle recurency
 			readStack.push($1);
 			if (scopeStack.size() != 0 && scopeStack.top() == symtable[$1].scope) {
@@ -547,6 +605,7 @@ term: factor { $$ = $1; }
 
 factor: variable { $$=$1; }
 	| ID {
+			$1 = createFunProcCopy($1);
 			// Handle recurency
 			readStack.push($1);
 			if (scopeStack.size() != 0 && scopeStack.top() == symtable[$1].scope) {

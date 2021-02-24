@@ -10,13 +10,13 @@ int lookup (string s)
 {
   // First look in local scope, then check in global scope
   if (scopeStack.size() != 0) {
-    for (auto p = symtable.end(); p != symtable.begin(); p--)
+    for (auto p = symtable.begin(); p != symtable.end(); p++)
       if (p->name == s && scopeStack.top() == p->scope) 
       {
         return distance(symtable.begin(), p);
       }
   }
-  for (auto p = symtable.end(); p != symtable.begin(); p--)
+  for (auto p = symtable.begin(); p != symtable.end(); p++)
     if (p->name == s && p->scope == GLOBAL) 
     {
       return distance(symtable.begin(), p);
@@ -26,7 +26,8 @@ int lookup (string s)
 
 int insert_id (string s, dataType dtype) 
 {
-  // cout<<"Add to symtable: "<<s<<endl;
+  //cout<<"Add to symtable: "<<s<<endl;
+  //cout<<scopeStack.size()<<endl;
   // cout<<"Current offset: "<<last_offset<<endl;
   // cout<<"Data type:"<<dtype<<endl;
   struct entry e;
@@ -36,26 +37,29 @@ int insert_id (string s, dataType dtype)
   if (isParamsDeclaration) {
     e.scope = scopeStack.top();
     e.type = PARAM;
-    e.offset = symtable[scopeStack.top()].value.params.offset_up;
-    symtable[scopeStack.top()].value.params.offset_up += 4;
   } else if (scopeStack.size() > 0) {
     e.scope = scopeStack.top();
     if (dtype == INT)
     {
       symtable[scopeStack.top()].value.params.offset_down -= 4;
+      e.offset = symtable[scopeStack.top()].value.params.offset_down;
+
     } else if (dtype == FLOAT)
     {
       symtable[scopeStack.top()].value.params.offset_down -= 8;
+      e.offset = symtable[scopeStack.top()].value.params.offset_down;
     }
-    e.offset = symtable[scopeStack.top()].value.params.offset_down;
   } else {
+    //cout << "GLOBAL" << endl;
     e.scope = GLOBAL;
     e.offset = last_offset;
     if (dtype == INT)
     {
+      e.offset = last_offset;
       last_offset += 4;
     } else if (dtype == FLOAT)
     {
+      e.offset = last_offset;
       last_offset += 8;
     }
   }
@@ -86,6 +90,8 @@ void print_entry(int index, bool preceedHash)
       cout << "#";
     }
     if (scopeStack.size() > 0 && symtable[index].scope != GLOBAL) {
+      //cout << symtable[index].offset << endl;
+      //cout << symtable[index].scope << endl;
       cout << "BP" + to_string(symtable[index].offset);
     } else {
       cout << symtable[index].offset;
