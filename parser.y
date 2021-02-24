@@ -393,6 +393,9 @@ statement: variable ASSIGNOP expression {
 	;
 
 variable: ID {
+		if (symtable[$1].dtype == NONE && !isParamsDeclaration && !isVarDeclaration) {
+			yyerror("Variable "+symtable[$1].name+" called before declaration");
+		}
 		if (symtable[$1].type == FUN) {
 			$1 = createFunProcCopy($1);
 		}
@@ -462,7 +465,7 @@ procedure_statement: ID {
 	}
 	| ID {
             $1 = createFunProcCopy($1);
-			// Handle recurency
+			// Handle recurrency
 			readStack.push($1);
 			if (scopeStack.size() != 0 && scopeStack.top() == symtable[$1].scope) {
 				symtable[$1].scope = -1;
@@ -471,7 +474,7 @@ procedure_statement: ID {
 		readStack.pop();
 		int sp_counter = 0;
 		if (symtable[$1].value.params.pendingExpressions.size() != symtable[$1].value.params.inputs.size()) {
-			yyerror("Wrong number of input arguments!");
+			yyerror("Wrong number of input arguments for function "+symtable[symtable[$1].scope].name);
 		}
 		auto input_ref = symtable[$1].value.params.inputs.rbegin();
 		for (auto it = symtable[$1].value.params.pendingExpressions.begin(); it != symtable[$1].value.params.pendingExpressions.end(); ++it) {
@@ -615,7 +618,7 @@ factor: variable { $$=$1; }
 		readStack.pop();
 		int sp_counter = 0;
 		if (symtable[$1].value.params.pendingExpressions.size() != symtable[$1].value.params.inputs.size()) {
-			yyerror("Wrong number of input arguments!");
+			yyerror("Wrong number of input arguments for function "+symtable[symtable[$1].scope].name);
 		}
 		// Convert to proper type
 		auto input_ref = symtable[$1].value.params.inputs.rbegin();
